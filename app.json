@@ -17,6 +17,7 @@
       "bundleIdentifier": "hr.barlovic.seniorradio",
       "infoPlist": {
         "UIBackgroundModes": [
+          "audio",
           "audio"
         ],
         "NSAppTransportSecurity": {
@@ -45,6 +46,12 @@
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "edgeToEdgeEnabled": true
@@ -60,6 +67,12 @@
         "projectId": "af6e6a8b-71d6-4b5f-b00e-a178e2c0e484"
       }
     },
-    "owner": "catcam"
+    "owner": "catcam",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/af6e6a8b-71d6-4b5f-b00e-a178e2c0e484"
+    }
   }
 }
