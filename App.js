@@ -21,12 +21,13 @@ export default function App() {
   useKeepAwake();
 
   const soundRef = useRef(null);
-  const [playing, setPlaying] = useState(null);   // slug or null
-  const [loading, setLoading] = useState(null);   // slug or null
+  const [playing, setPlaying] = useState(null);
+  const [loading, setLoading] = useState(null);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [offlineWarning, setOfflineWarning] = useState(false);
+  const [trackInfo, setTrackInfo] = useState({});  // slug → { broadcastTime, caption }
 
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -63,6 +64,7 @@ export default function App() {
     try {
       const track = await fetchTrack(slug);
       if (track.offline) setOfflineWarning(true);
+      setTrackInfo(prev => ({ ...prev, [slug]: { broadcastTime: track.broadcastTime, caption: track.caption } }));
 
       const { sound } = await Audio.Sound.createAsync(
         { uri: track.url },
@@ -121,7 +123,12 @@ export default function App() {
               {isLoading ? (
                 <ActivityIndicator size="large" color="#fff" />
               ) : (
-                <Text style={styles.btnText}>{isPlaying ? '■ ' + label : label}</Text>
+                <>
+                  <Text style={styles.btnText}>{isPlaying ? '■ ' + label : label}</Text>
+                  {trackInfo[slug]?.broadcastTime && (
+                    <Text style={styles.broadcastTime}>{trackInfo[slug].broadcastTime}</Text>
+                  )}
+                </>
               )}
             </TouchableOpacity>
           );
@@ -199,6 +206,12 @@ const styles = StyleSheet.create({
     fontSize: 44,
     fontWeight: '800',
     letterSpacing: 2,
+  },
+  broadcastTime: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 18,
+    marginTop: 6,
+    fontWeight: '400',
   },
   progressBox: {
     marginTop: 40,

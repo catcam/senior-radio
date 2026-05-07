@@ -8,22 +8,36 @@ const CACHE_TTL_MS = 30 * 60 * 1000;
 const memCache = {};
 const STORAGE_KEY = (slug) => `@senior_radio:last:${slug}`;
 
-function formatDate() {
-  const d = new Date();
-  return d.toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+function formatBroadcastTime(isoString) {
+  if (!isoString) return null;
+  const d = new Date(isoString);
+  if (isNaN(d)) return null;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}.${month}. u ${hours}:${minutes}`;
 }
 
-function extractMp3Url(html) {
+function extractEpisodeData(html) {
   const scriptMatch = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
   if (!scriptMatch) throw new Error('NEXT_DATA_NOT_FOUND');
-  const blob = scriptMatch[1];
-  const mp3Match = blob.match(/https:\/\/api\.hrt\.hr\/media\/[^"\\]+\.mp3/);
-  if (!mp3Match) throw new Error('MP3_URL_NOT_FOUND');
-  return mp3Match[0];
+
+  const json = JSON.parse(scriptMatch[1]);
+  const cycle = json?.props?.pageProps?.cycle?.data?.radioCycle?.[0];
+  if (!cycle) throw new Error('NEXT_DATA_NOT_FOUND');
+
+  const ep = cycle.lastAvailableEpisode;
+  const url = ep?.audio?.metadata?.[0]?.path;
+  if (!url) throw new Error('MP3_URL_NOT_FOUND');
+
+  const broadcastStart = ep?.bag?.contentItems?.[0]?.broadcastStart || null;
+  const caption = ep?.caption || null;
+
+  return { url, broadcastStart, caption };
 }
 
 export async function fetchTrack(slug) {
-  // in-memory cache (30 min)
   const cached = memCache[slug];
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) return cached.data;
 
@@ -37,18 +51,18 @@ export async function fetchTrack(slug) {
     });
     if (!res.ok) throw new Error(`HTTP_${res.status}`);
     const html = await res.text();
-    const url = extractMp3Url(html);
+    const { url, broadcastStart, caption } = extractEpisodeData(html);
+
     const data = {
       url,
-      title: slug === 'vijesti' ? 'Vijesti' : 'Dnevnik',
-      date: formatDate(),
+      caption,
+      broadcastTime: formatBroadcastTime(broadcastStart),
       offline: false,
     };
     memCache[slug] = { data, ts: Date.now() };
     await AsyncStorage.setItem(STORAGE_KEY(slug), JSON.stringify({ ...data, offline: true }));
     return data;
   } catch (onlineErr) {
-    // offline fallback — last known URL
     const raw = await AsyncStorage.getItem(STORAGE_KEY(slug));
     if (raw) return { ...JSON.parse(raw), offline: true };
     const e = new Error('NO_CONNECTION_AND_NO_CACHE');
