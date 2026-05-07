@@ -1,155 +1,91 @@
 # Senior Radio
 
-A simple, elder-friendly audio app for listening to HRT Radio (Croatian national broadcaster) on Android. Two large buttons: **VIJESTI** (news) and **DNEVNIK** (evening program). Tap to play, tap again to stop.
+Aplikacija za starije ljude koji žele slušati HRT Radio na Androidu. Dva velika gumba — **VIJESTI** i **DNEVNIK** — i ništa više. Tapneš, svira. Tapneš opet, stane.
 
-## Features
+Nema servera. Nema backenda. Scraper radi direktno unutar aplikacije — React Native `fetch()` je nativan HTTP poziv, ne Browser, pa nema CORS-a. MP3 URL se izvlači iz HRT-ove stranice u hodu.
 
-- **Two big buttons** — large, high-contrast UI designed for older adults
-- **Offline support** — caches last successful stream; plays it if connection drops
-- **No backend required** — scraper runs inside the app
-- **Live MP3 extraction** — fetches HRT pages in real-time, extracts stream URL via regex
-- **30-minute cache** — both in-memory and persistent (AsyncStorage)
-- **Screen-always-on** — keeps display active during playback via `expo-keep-awake`
-- **Background audio** — audio continues if user switches apps (iOS) or screen locks
-- **OTA updates** — JavaScript-only changes auto-update via `expo-updates`
+## Što radi
 
-## Tech Stack
+- Dva gumba, 44pt, tamno plava pozadina — dizajnirano za starije, vidljivo i po slabom svjetlu
+- Pokazuje datum i vrijeme emitiranja na gumbu (npr. `07.05. u 12:00`) — odmah znaš koliko su vijesti svježe
+- 15-minutni cache — ne fetcha stranicu na svaki tap, ali ni ne drži previše stare podatke
+- Ako nema interneta, pušta zadnji snimljeni stream s napomenom "Reproducira se snimljena kopija"
+- Ekran ostaje upaljen dok svira (`expo-keep-awake`)
+- Audio nastavlja u pozadini — možeš zaključati ekran
 
-- **Framework**: React Native (Expo SDK 54)
-- **Audio**: `expo-av` for playback
-- **Storage**: `@react-native-async-storage/async-storage` for offline cache
-- **Keep-awake**: `expo-keep-awake` to prevent screen sleep
-- **OTA**: `expo-updates` for hotfixes
+## Kako radi scraper
 
-## Project Structure
+HRT-ova web stranica koristi Next.js. Svaka stranica slusaonica-e (`/slusaonica/vijesti`, `/slusaonica/dnevnik`) sadrži `<script id="__NEXT_DATA__">` tag s JSON podacima o epizodi — uključujući direktan MP3 link i `broadcastStart` timestamp.
+
+Scraper (`src/scraper.js`) radi ovako:
+1. Fetcha `https://radio.hrt.hr/slusaonica/{vijesti|dnevnik}`
+2. Regex izvuče `__NEXT_DATA__` script tag
+3. JSON parse → `lastAvailableEpisode.audio.metadata[0].path` = MP3 URL
+4. `broadcastStart` = točno vrijeme emitiranja (UTC)
+
+Rezultat se cachea 15 minuta u memoriji, a zadnji poznati URL se sprema u `AsyncStorage` kao offline fallback.
+
+### Ako HRT promijeni strukturu
+
+Povremeno se dogodi. Otvori `https://radio.hrt.hr/slusaonica/vijesti` u DevToolsu, pogledaj `__NEXT_DATA__` JSON i nađi gdje je sad MP3 URL. Promjena je u `src/scraper.js`, funkcija `extractEpisodeData()` — čisto JS, deploy ide OTA updateom bez rebuildanja APK-a.
+
+## Struktura projekta
 
 ```
-senior-radio/
-  App.js              — main UI (buttons, progress, playback state)
-  src/scraper.js      — HRT scraper + in-memory + AsyncStorage cache
-  app.json            — Expo config (permissions, bundle IDs, plugins)
-  eas.json            — EAS build profiles (Android APK)
-  assets/             — icons and splash screen
-  package.json        — dependencies
+App.js            — UI: gumbi, progress bar, audio state
+src/scraper.js    — HRT scraper + cache logika
+app.json          — Expo config (permissions, bundle ID, plugins)
+eas.json          — EAS build profili
+assets/           — ikone i splash screen
 ```
 
-## How the Scraper Works
+## Build
 
-1. Fetches `https://radio.hrt.hr/slusaonica/{vijesti|dnevnik}`
-2. Extracts HTML `<script id="__NEXT_DATA__">` tag
-3. Regex-matches MP3 URL: `https://api.hrt.hr/media/*.mp3`
-4. Returns `{ url, title, date, offline }`
-
-**Cache logic:**
-- In-memory cache (30 min): fast subsequent clicks within same session
-- AsyncStorage: persists last known URL across app restarts
-- If online fetch fails, falls back to stored URL with `offline: true` flag
-
-## Build & Deploy
-
-### Prerequisites
+Trebaš Expo account (besplatan) i `eas-cli`:
 
 ```bash
 npm install -g eas-cli
-eas login  # requires Expo account (free)
+eas login
 ```
 
-### Build Android APK
+### Android APK
 
 ```bash
-cd /home/botuser/senior-radio
 npm install
 eas build -p android --profile preview
 ```
 
-- Takes 5–10 minutes
-- APK download link appears in [EAS Dashboard](https://expo.dev)
-- Transfer to Android phone (USB or email) and install
+Build se vrši u EAS cloudu, traje 5-15 minuta. APK link stiže u [EAS Dashboard](https://expo.dev). Instalacija na uređaju zahtijeva uključenu opciju "Install from unknown sources".
 
-### Build iOS App Bundle
+### OTA update (JS-only promjene)
+
+Za sve promjene koje ne diraju native kod (scraper logika, UI, cache TTL...):
 
 ```bash
-eas build -p ios --profile production
+eas update --branch preview --message "opis promjene"
 ```
 
-iOS supports background audio and "Add to Home Screen" (iOS 17+). PWA version not yet built.
+App preuzme update pri sljedećem pokretanju. Nema čekanja u queuu, nema reinstalacije.
 
-## If HRT Changes Page Structure
+## Android dozvole
 
-HRT occasionally restructures their website. If the app can't find the stream:
-
-1. **Open browser DevTools** on a PC/Mac
-2. **Fetch** `https://radio.hrt.hr/slusaonica/vijesti`
-3. **Inspect** the HTML response
-4. **Find** the `<script id="__NEXT_DATA__">` tag
-5. **Trace** where the MP3 URL moved to
-
-Then edit `src/scraper.js`, specifically the `extractMp3Url()` function:
-
-```javascript
-function extractMp3Url(html) {
-  const scriptMatch = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-  if (!scriptMatch) throw new Error('NEXT_DATA_NOT_FOUND');
-  const blob = scriptMatch[1];
-  const mp3Match = blob.match(/https:\/\/api\.hrt\.hr\/media\/[^"\\]+\.mp3/);
-  if (!mp3Match) throw new Error('MP3_URL_NOT_FOUND');
-  return mp3Match[0];
-}
-```
-
-Adjust the regex if the URL pattern or location changes. **JavaScript-only changes deploy via OTA update** — no rebuild needed.
-
-## Android Permissions
-
-```json
-{
-  "android.permission.INTERNET": "Fetch HRT pages and stream audio",
-  "android.permission.ACCESS_NETWORK_STATE": "Detect offline state",
-  "android.permission.WAKE_LOCK": "Keep CPU active during playback",
-  "android.permission.FOREGROUND_SERVICE": "Background audio"
-}
-```
-
-## Offline Behavior
-
-When playing from cache (no internet):
-- Yellow note below progress bar: **"Reproducira se snimljena kopija"** (Playing cached copy)
-- Last successful stream URL is played
-- User can see date of cached broadcast
-
-If no internet **and** no cache → error alert: **"Nema internetske veze i nema snimljene kopije"**
-
-## Error Messages (User-Friendly Croatian)
-
-| Error | Cause |
-|-------|-------|
-| HRT je promijenio strukturu stranice — javite programeru. | `__NEXT_DATA__` script tag not found |
-| Emisija trenutno nije dostupna na HRT-u. | MP3 URL not found in page |
-| Nema internetske veze i nema snimljene kopije. | Offline + no cache |
-| HRT server vratio grešku (XXX). | HTTP status error |
-
-## Development
-
-Install dependencies:
-```bash
-npm install
-```
-
-Run on emulator or device:
-```bash
-npx expo start
-```
-
-Scan QR code with **Expo Go** app (Android/iOS).
+- `INTERNET` — fetchanje HRT stranica i stream
+- `ACCESS_NETWORK_STATE` — detekcija offline stanja
+- `WAKE_LOCK` + `FOREGROUND_SERVICE` — audio u pozadini
 
 ## Bundle ID
 
-- **Android**: `hr.barlovic.seniorradio`
-- **iOS**: `hr.barlovic.seniorradio`
+`hr.barlovic.seniorradio` (Android i iOS)
 
-## Notes
+## Razvoj
 
-- App uses **light mode only** — no dark mode toggle
-- Designed for **portrait orientation** (locks on Android, suggests portrait on iOS)
-- Colors: dark blue (`#0B1F4D`) background, large white text (44–52px)
-- Audio plays in background on Android (foreground service), iOS requires "Add to Home Screen" for persistent background audio
+```bash
+npm install
+npx expo start
+```
+
+Skeniraš QR kod Expo Go appom na Androidu.
+
+---
+
+**Autori:** Nikša Barlović i Claude (Anthropic)
