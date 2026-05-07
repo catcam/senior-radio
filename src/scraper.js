@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const BASE_URL = 'https://radio.hrt.hr/slusaonica';
 const USER_AGENT =
   'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
-const CACHE_TTL_MS = 30 * 60 * 1000;
+const CACHE_TTL_MS = 15 * 60 * 1000;
 
 const memCache = {};
 const STORAGE_KEY = (slug) => `@senior_radio:last:${slug}`;
