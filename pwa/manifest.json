@@ -1,8 +1,8 @@
 {
   "name": "Senior Radio",
   "short_name": "Radio",
-  "start_url": "/senior-radio/pwa/",
-  "scope": "/senior-radio/pwa/",
+  "start_url": "/senior-radio/",
+  "scope": "/senior-radio/",
   "display": "standalone",
   "background_color": "#0B1F4D",
   "theme_color": "#0B1F4D",
