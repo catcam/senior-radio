@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { fetchTrack, describeError, invalidateCache } from './src/scraper';
 
 const STATIONS = [
@@ -18,7 +18,6 @@ const STATIONS = [
 ];
 
 export default function App() {
-  useKeepAwake();
 
   const soundRef = useRef(null);
   const [playing, setPlaying] = useState(null);
@@ -51,6 +50,7 @@ export default function App() {
     setElapsed(0);
     setDuration(0);
     setOfflineWarning(false);
+    deactivateKeepAwake();
   }, []);
 
   const handlePress = useCallback(async (slug) => {
@@ -87,6 +87,7 @@ export default function App() {
       );
       soundRef.current = sound;
       setPlaying(slug);
+      activateKeepAwakeAsync();
     } catch (err) {
       Alert.alert('Greška', describeError(err));
       invalidateCache(slug);
