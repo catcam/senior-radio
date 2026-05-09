@@ -76,6 +76,7 @@ export default function App() {
             setProgress(0);
             setElapsed(0);
             setOfflineWarning(false);
+            deactivateKeepAwake();
           } else {
             const dur = status.durationMillis || 0;
             const pos = status.positionMillis || 0;
