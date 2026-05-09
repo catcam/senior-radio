@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE_URL = 'https://radio.hrt.hr/slusaonica';
-const USER_AGENT =
-  'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+const USER_AGENT = 'SeniorRadio/1.0 (+https://seniori.org; Nikša Barlović)';
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
 const memCache = {};
@@ -45,6 +44,7 @@ export async function fetchTrack(slug) {
     const res = await fetch(`${BASE_URL}/${slug}`, {
       headers: {
         'User-Agent': USER_AGENT,
+        Referer: 'https://seniori.org/',
         Accept: 'text/html,application/xhtml+xml',
         'Accept-Language': 'hr-HR,hr;q=0.9,en;q=0.5',
       },
