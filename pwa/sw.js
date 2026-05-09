@@ -1,4 +1,4 @@
-const CACHE_NAME = 'senior-radio-v2';
+const CACHE_NAME = 'senior-radio-v3';
 const SHELL = ['./index.html', './scraper.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
