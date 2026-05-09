@@ -1,0 +1,51 @@
+name: Update HRT episode data
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch HRT episodes
+        run: |
+          mkdir -p pwa/data
+          python3 - <<'EOF'
+          import json, re, urllib.request, sys
+
+          BASE = 'https://radio.hrt.hr/slusaonica'
+          UA = 'SeniorRadio/1.0 (+https://seniori.org; Niksa Barlovic)'
+
+          def fetch(slug):
+              req = urllib.request.Request(f'{BASE}/{slug}',
+                  headers={'User-Agent': UA, 'Referer': 'https://seniori.org/',
+                           'Accept-Language': 'hr-HR,hr;q=0.9'})
+              html = urllib.request.urlopen(req, timeout=15).read().decode()
+              m = re.search(r'<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)</script>', html)
+              d = json.loads(m.group(1))
+              ep = d['props']['pageProps']['cycle']['data']['radioCycle'][0]['lastAvailableEpisode']
+              url = ep['audio']['metadata'][0]['path']
+              bs = ep.get('bag',{}).get('contentItems',[{}])[0].get('broadcastStart')
+              caption = ep.get('caption')
+              return {'url': url, 'broadcastStart': bs, 'caption': caption}
+
+          for slug in ('vijesti', 'dnevnik'):
+              try:
+                  data = fetch(slug)
+                  with open(f'pwa/data/{slug}.json', 'w') as f:
+                      json.dump(data, f)
+                  print(f'{slug}: OK — {data["url"][:60]}')
+              except Exception as e:
+                  print(f'{slug}: FAIL — {e}', file=sys.stderr)
+          EOF
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pwa/data/
+          git diff --cached --quiet || git commit -m "data: HRT episode update $(date -u +%H:%M)"
+          git push

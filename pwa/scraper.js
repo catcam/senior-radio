@@ -1,5 +1,5 @@
-const API_BASE = 'https://seniori.org/api';
-const CACHE_TTL = 15 * 60 * 1000;
+const DATA_BASE = 'https://raw.githubusercontent.com/catcam/senior-radio/master/pwa/data';
+const CACHE_TTL = 5 * 60 * 1000; // match GitHub raw cache-control: max-age=300
 const memCache = {};
 
 export async function fetchTrack(slug) {
@@ -10,19 +10,18 @@ export async function fetchTrack(slug) {
 
   const storageKey = `sr_cache_${slug}`;
   try {
-    const res = await fetch(`${API_BASE}/${slug}`);
+    // cache-bust bucket aligns with GitHub's 5-min CDN TTL
+    const bucket = Math.floor(now / CACHE_TTL);
+    const res = await fetch(`${DATA_BASE}/${slug}.json?b=${bucket}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const ep = await res.json();
-    if (ep.error) throw new Error(ep.error);
     const data = { url: ep.url, broadcastTime: formatTime(ep.broadcastStart), caption: ep.caption || null, offline: false };
     memCache[slug] = { ts: now, data };
     try { localStorage.setItem(storageKey, JSON.stringify({ ts: now, data })); } catch (_) {}
     return data;
   } catch (err) {
     const stored = localStorage.getItem(storageKey);
-    if (stored) {
-      return { ...JSON.parse(stored).data, offline: true };
-    }
+    if (stored) return { ...JSON.parse(stored).data, offline: true };
     throw err;
   }
 }
