@@ -1,42 +1,68 @@
 # Senior Radio
 
-Aplikacija za starije ljude koji žele slušati HRT Radio na Androidu. Dva velika gumba — **VIJESTI** i **DNEVNIK** — i ništa više. Tapneš, svira. Tapneš opet, stane.
+Aplikacija za starije ljude koji žele slušati HRT Radio na Androidu i iPhoneu. Dva velika gumba — **VIJESTI** i **DNEVNIK** — i ništa više. Tapneš, svira. Tapneš opet, stane.
 
-Nema servera. Nema backenda. Scraper radi direktno unutar aplikacije — React Native `fetch()` je nativan HTTP poziv, ne Browser, pa nema CORS-a. MP3 URL se izvlači iz HRT-ove stranice u hodu.
+Dostupno kao:
+- **Android APK** — direktna instalacija, nema Play Storea
+- **iOS / web PWA** — Safari → "Add to Home Screen" → izgleda kao nativna app
+
+Web verzija: **[seniori.org](https://seniori.org)** | PWA: **[catcam.github.io/senior-radio](https://catcam.github.io/senior-radio/)**
 
 ## Što radi
 
-- Dva gumba, 44pt, tamno plava pozadina — dizajnirano za starije, vidljivo i po slabom svjetlu
-- Pokazuje datum i vrijeme emitiranja na gumbu (npr. `07.05. u 12:00`) — odmah znaš koliko su vijesti svježe
-- 15-minutni cache — ne fetcha stranicu na svaki tap, ali ni ne drži previše stare podatke
-- Ako nema interneta, pušta zadnji snimljeni stream s napomenom "Reproducira se snimljena kopija"
-- Ekran ostaje upaljen dok svira (`expo-keep-awake`)
-- Audio nastavlja u pozadini — možeš zaključati ekran
+- Dva gumba, 44pt, tamno plava pozadina — vidljivo i po slabom svjetlu
+- Datum i vrijeme emitiranja na gumbu (npr. `09.05.2026. 08:00`) — odmah znaš koliko su vijesti svježe
+- 15-minutni cache — ne fetcha HRT na svaki tap
+- Offline fallback — zadnja poznata epizoda ako nema interneta
+- Ekran ostaje upaljen dok svira, gasi se kad prestane
+- Audio u pozadini — možeš zaključati ekran
+- Singleton zaštita — ako otvoriš app dvaput, drugi prozor pokazuje "Radio već radi"
 
-## Kako radi scraper
+## Platforme
 
-HRT-ova web stranica koristi Next.js. Svaka stranica slusaonica-e (`/slusaonica/vijesti`, `/slusaonica/dnevnik`) sadrži `<script id="__NEXT_DATA__">` tag s JSON podacima o epizodi — uključujući direktan MP3 link i `broadcastStart` timestamp.
+### Android (native)
 
-Scraper (`src/scraper.js`) radi ovako:
-1. Fetcha `https://radio.hrt.hr/slusaonica/{vijesti|dnevnik}`
+React Native app, `fetch()` je nativan HTTP — nema CORS-a. Scraper radi direktno unutar aplikacije.
+
+### iOS / PWA
+
+Browser CORS blokira direktan fetch HRT stranice, pa PWA koristi GitHub Actions koji svakih 15 minuta server-side fetchira HRT i commitira `pwa/data/{slug}.json` na repo. PWA čita s `raw.githubusercontent.com` (CORS `*`). Singleton zaštita via Web Locks API.
+
+Web verzija na seniori.org koristi Flask backend kao proxy — isti rezultat, ali sa statistikom slušanja.
+
+## Kako radi scraper (Android)
+
+HRT-ova web stranica koristi Next.js. Svaka slusaonica stranica sadrži `<script id="__NEXT_DATA__">` s JSON podacima o epizodi:
+
+1. Fetch `https://radio.hrt.hr/slusaonica/{vijesti|dnevnik}`
 2. Regex izvuče `__NEXT_DATA__` script tag
 3. JSON parse → `lastAvailableEpisode.audio.metadata[0].path` = MP3 URL
 4. `broadcastStart` = točno vrijeme emitiranja (UTC)
 
-Rezultat se cachea 15 minuta u memoriji, a zadnji poznati URL se sprema u `AsyncStorage` kao offline fallback.
+User-Agent i Referer su postavljeni na `SeniorRadio/1.0 (+https://seniori.org)` — vidljivo u HRT logovima.
 
 ### Ako HRT promijeni strukturu
 
-Povremeno se dogodi. Otvori `https://radio.hrt.hr/slusaonica/vijesti` u DevToolsu, pogledaj `__NEXT_DATA__` JSON i nađi gdje je sad MP3 URL. Promjena je u `src/scraper.js`, funkcija `extractEpisodeData()` — čisto JS, deploy ide OTA updateom bez rebuildanja APK-a.
+Otvori `https://radio.hrt.hr/slusaonica/vijesti` u DevToolsu, pogledaj `__NEXT_DATA__` JSON. Promjena je u `src/scraper.js` → OTA update, bez rebuildanja APK-a.
 
 ## Struktura projekta
 
 ```
-App.js            — UI: gumbi, progress bar, audio state
-src/scraper.js    — HRT scraper + cache logika
-app.json          — Expo config (permissions, bundle ID, plugins)
-eas.json          — EAS build profili
-assets/           — ikone i splash screen
+App.js                          — UI: gumbi, progress bar, audio state
+src/scraper.js                  — Android HRT scraper + cache
+app.json                        — Expo config (permissions, launchMode, bundle ID)
+eas.json                        — EAS build profili
+assets/                         — ikone i splash screen
+pwa/
+  index.html                    — PWA UI (isti vizual kao Android)
+  scraper.js                    — Browser scraper (čita iz pwa/data/ na raw.github)
+  sw.js                         — Service worker, app shell cache
+  manifest.json                 — PWA manifest (standalone, ikone)
+  data/vijesti.json             — Automatski update svakih 15 min (GitHub Actions)
+  data/dnevnik.json             — Automatski update svakih 15 min (GitHub Actions)
+.github/workflows/
+  pages.yml                     — Deploy PWA na GitHub Pages
+  update-data.yml               — Cron: fetchira HRT, commitira JSON
 ```
 
 ## Build
@@ -52,20 +78,18 @@ eas login
 
 ```bash
 npm install
-eas build -p android --profile preview
+eas build -p android --profile production
 ```
 
-Build se vrši u EAS cloudu, traje 5-15 minuta. APK link stiže u [EAS Dashboard](https://expo.dev). Instalacija na uređaju zahtijeva uključenu opciju "Install from unknown sources".
+Build se vrši u EAS cloudu (5-15 min). APK link stiže u [EAS Dashboard](https://expo.dev). Instalacija zahtijeva "Install from unknown sources".
 
 ### OTA update (JS-only promjene)
 
-Za sve promjene koje ne diraju native kod (scraper logika, UI, cache TTL...):
-
 ```bash
-eas update --branch preview --message "opis promjene"
+CI=1 EXPO_TOKEN=... npx eas update --channel production --message "opis"
 ```
 
-App preuzme update pri sljedećem pokretanju. Nema čekanja u queuu, nema reinstalacije.
+App preuzme update pri sljedećem pokretanju. Bez reinstalacije.
 
 ## Android dozvole
 
@@ -76,15 +100,6 @@ App preuzme update pri sljedećem pokretanju. Nema čekanja u queuu, nema reinst
 ## Bundle ID
 
 `hr.barlovic.seniorradio` (Android i iOS)
-
-## Razvoj
-
-```bash
-npm install
-npx expo start
-```
-
-Skeniraš QR kod Expo Go appom na Androidu.
 
 ---
 
