@@ -1,0 +1,22 @@
+name: Deploy seniori.org
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy na VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 217.216.85.61
+          username: root
+          key: ${{ secrets.SENIORI_DEPLOY_KEY }}
+          script: |
+            cd /root/seniori.org
+            git pull origin master
+            pip3 install -r requirements.txt --quiet
+            systemctl restart seniori
+            echo "Deploy gotov ✓"
