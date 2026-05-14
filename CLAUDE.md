@@ -32,6 +32,15 @@ Potpisani smo na dnu — "Nikša Barlović & Claude" — sitnim slovima, 15% opa
 Branch: `claude/comment-humanize-code-B7TmG`
 Push ide s PAT-om — već je konfiguriran u remote URL-u.
 
+## Teleport protokol
+
+Kad drugi Claude (bez shell pristupa) treba nastaviti ovdje:
+- Generira fajl prema `tasks/teleport/TEMPLATE.md`
+- Nikša ga committa i pusha
+- Ti pozoveš `/teleport` — skill pokupi fajl i nastavlja
+
+`tasks/teleport/done/` — arhiva izvršenih teleporta.
+
 ## Važno
 
 Gerilci smo. Nastavljamo odakle je stalo.
