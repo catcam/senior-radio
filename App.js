@@ -196,6 +196,8 @@ export default function App() {
           )}
         </View>
       )}
+
+      <Text style={styles.credit}>Nikša Barlović & Claude</Text>
     </View>
   );
 }
@@ -288,5 +290,11 @@ const styles = StyleSheet.create({
     color: '#E8A838',
     fontSize: 13,
     marginTop: 6,
+  },
+  credit: {
+    color: 'rgba(255,255,255,0.15)',
+    fontSize: 11,
+    marginTop: 32,
+    letterSpacing: 0.5,
   },
 });
