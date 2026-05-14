@@ -3,6 +3,9 @@ name: Deploy seniori.org
 on:
   push:
     branches: [master]
+    paths:
+      - 'pwa/**'
+      - '.github/workflows/deploy-seniori.yml'
 
 jobs:
   deploy:
@@ -15,7 +18,7 @@ jobs:
           username: root
           key: ${{ secrets.SENIORI_DEPLOY_KEY }}
           script: |
-            cd /root/seniori.org
+            cd /home/botuser/seniori
             git pull origin master
             pip3 install -r requirements.txt --quiet
             systemctl restart seniori
