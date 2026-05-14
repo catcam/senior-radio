@@ -2,7 +2,7 @@
 
 Napravili smo ovo za ljude koji ne vide dobro, ne snalaze se s tehnologijom, i kojima je svejedno što je PWA. Njima treba samo — tapneš, svira.
 
-Dva gumba. **VIJESTI** i **DNEVNIK**. Tamno plava pozadina, slova 44pt. Tapneš, čuješ vijesti. Tapneš opet, stane. Ekran se ne gasi dok svira. Ako otvoriš app dvaput, drugi put piše "Radio već radi" — jer ne, nisi glup, app je samo zaboravila da je već otvorena.
+Dva gumba. **VIJESTI** i **DNEVNIK**. Tamno plava pozadina, slova 44pt. Tapneš, čuješ vijesti. Tapneš opet, stane. Ekran se ne gasi dok svira. Ako otvoriš app dvaput, drugi put piše "Radio već radi" — app pamti da već svira i javlja to.
 
 Radi na Androidu kao APK i na iPhoneu kao PWA (Safari → "Dodaj na početni zaslon").
 
