@@ -6,6 +6,7 @@ on:
     paths:
       - 'pwa/**'
       - '.github/workflows/deploy-seniori.yml'
+  workflow_dispatch:
 
 jobs:
   deploy:
